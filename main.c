@@ -1,11 +1,11 @@
+#include <stdio.h>
 #include <raylib.h>
 #include <raymath.h>
 #include <math.h>
 
 #define TEX_SIZE 8
-#define SOUND_SIZE 8
-#define SFXALIAS_SIZE 8
-#define FONT_QUALITY 128
+#define FONT_QUALITY 1024
+#define SUPPORT_SCREEN_CAPTURE true
 
 typedef struct SafeTexture SafeTexture;
 typedef struct SafeSound SafeSound;
@@ -20,10 +20,6 @@ struct SafeTexture {
 	Texture2D tex;
 	bool init;
 };
-struct SafeSound {
-	Sound sound;
-	bool init;
-};
 struct StateData {
 	State state;
 	int frame;
@@ -31,10 +27,6 @@ struct StateData {
 	Font font;
 	Font auxFont;
 	SafeTexture textures[TEX_SIZE]; // Todas las texturas que se utilizan durante el tiempo de ejecución se mantienen aquí
-	Music music;
-	SafeSound sounds[10]; // Todas los sonidos que se utilizan durante el tiempo de ejecución se mantienen aquí
-	SafeSound sfxAlias[10]; // Un array de sonidos para copiar referencias de "sounds", así se pueden tener efectos de sonido en paralelo
-	int sfxPosition; // Posición para localizar un sfxAlias "libre"
 };
 
 void UpdateState(StateData *state);
@@ -50,8 +42,10 @@ int main() {
 	
 	const int virtualScreenWidth = 320;
 	const int virtualScreenHeight = 180;
-	const int screenWidth = 960;
-	const int screenHeight = 540;
+	const int screenWidth = 1280;
+	const int screenHeight = 720;
+	//const int screenWidth = 640;
+	//const int screenHeight = 360;
 	InitWindow(screenWidth, screenHeight, "Base de Datos - Intro");
 	const float virtualRatio = (float)screenWidth/(float)virtualScreenWidth;
 	Camera2D worldSpaceCamera = { {0, 0}, {0, 0}, 0.0f, 1.0f };
@@ -101,13 +95,11 @@ int main() {
 			BeginMode2D(screenSpaceCamera);
 				DrawTexturePro(target.texture, sourceRec, destRec, origin, 0.0f, WHITE);
 			EndMode2D();
-			DrawFPS(10, 10);
+			// DrawFPS(10, 10);
 		EndDrawing();
 	}
 
-	StopMusicStream(state.music);
 	UnloadRenderTexture(target);
-	UnloadMusicStream(state.music); // Unload music stream buffers from RAM
 	UnloadFont(state.font);
 	UnloadFont(state.auxFont);
 
@@ -117,38 +109,18 @@ int main() {
 			state.textures[i].init = false;
 		}
 	}
-	for (i = 0; i < SFXALIAS_SIZE; i++) {
-		if (state.sfxAlias[i].init) {
-			UnloadSoundAlias(state.sfxAlias[i].sound);
-			state.sfxAlias[i].init = false;
-		}
-	}
-	for (i = 0; i < SOUND_SIZE; i++) {
-		if (state.sounds[i].init) {
-			UnloadSound(state.sounds[i].sound);
-			state.sounds[i].init = false;
-		}
-	}
 
-	CloseAudioDevice(); // Close audio device (music streaming is automatically stopped)
 	CloseWindow(); // Close window and OpenGL context
 
 	return 0;
 }
 
-void PlaySecSound(StateData *state, int id) {
-	id = id % 10;
-	if (state->sfxAlias[state->sfxPosition].init)
-		UnloadSoundAlias(state->sfxAlias[state->sfxPosition].sound);
-	state->sfxAlias[state->sfxPosition].sound = LoadSoundAlias(state->sounds[id].sound);
-	state->sfxAlias[state->sfxPosition].init = true;
-	PlaySound(state->sfxAlias[state->sfxPosition].sound);
-	state->sfxPosition = (state->sfxPosition + 1) % 10;
-}
 void UpdateState(StateData *state) {
-	state->frame++;
 	switch (state->state) {
 		case STATE_INTRO:
+			char filename[64];
+			sprintf(filename, "intro%05d.png", state->frame);
+			TakeScreenshot(filename);
 			if (state->frame > 220) {
 				state->bgColor = (Color) { Clamp(state->bgColor.r - 5, 5, 255),
 							   Clamp(state->bgColor.g - 5, 0, 255),
@@ -161,24 +133,25 @@ void UpdateState(StateData *state) {
 			break;
 		default: break;
 	}
+	state->frame++;
 }
 void DrawState(StateData *state) {
 	switch (state->state) {
 		case STATE_INTRO:
 			if (state->frame < 155) {
 				DrawTexture(state->textures[2].tex, 0, 0, WHITE);
-				DrawTextPro(state->font, "elf", (Vector2) { 104, 140 }, (Vector2) { 0, 0 }, 0, 18, 1, (Color) { 5, 0, 0, 255});
-				DrawTextPro(state->font, "elf", (Vector2) { 106, 140 }, (Vector2) { 0, 0 }, 0, 18, 1, (Color) { 5, 0, 0, 255});
-				DrawTextPro(state->font, "elf", (Vector2) { 105, 139 }, (Vector2) { 0, 0 }, 0, 18, 1, (Color) { 5, 0, 0, 255});
-				DrawTextPro(state->font, "elf", (Vector2) { 105, 141 }, (Vector2) { 0, 0 }, 0, 18, 1, (Color) { 5, 0, 0, 255});
-				DrawTextPro(state->font, "elf", (Vector2) { 105, 140 }, (Vector2) { 0, 0 }, 0, 18, 1, (Color) { 255, 245, 245, 255});
+				DrawTextPro(state->font, "elf", (Vector2) { 104, 140 }, (Vector2) { 0, 0 }, 0, 20, 1, (Color) { 5, 0, 0, 255});
+				DrawTextPro(state->font, "elf", (Vector2) { 106, 140 }, (Vector2) { 0, 0 }, 0, 20, 1, (Color) { 5, 0, 0, 255});
+				DrawTextPro(state->font, "elf", (Vector2) { 105, 139 }, (Vector2) { 0, 0 }, 0, 20, 1, (Color) { 5, 0, 0, 255});
+				DrawTextPro(state->font, "elf", (Vector2) { 105, 141 }, (Vector2) { 0, 0 }, 0, 20, 1, (Color) { 5, 0, 0, 255});
+				DrawTextPro(state->font, "elf", (Vector2) { 105, 140 }, (Vector2) { 0, 0 }, 0, 20, 1, (Color) { 255, 245, 245, 255});
 				DrawTexture(state->textures[0].tex, Lerp(210, 0, HeavisideEasing((float) (-320 + state->frame * 4) / 120, 30)), 0, WHITE);
 				DrawTexture(state->textures[1].tex, Lerp(0, -210, HeavisideEasing((float) (-120 + state->frame * 4) / 120, 30)), 0, WHITE);
 			}
 			else if (state->frame >= 155) {
 				DrawTexture(state->textures[3].tex, 1, 0, (Color) { 255, 255, 255, Clamp(255 + (220 - state->frame) * 5, 0, 255 ) });
 				DrawTextPro(state->font, TextSubtext("pectrum", 0, Clamp((-155 + state->frame) / 5, 0, 7)),
-					    (Vector2) { 105, 140 }, (Vector2) { 0, 0 }, 0, 18, 1, (Color) { 5, 0, 0, Clamp(255 + (220 - state->frame) * 5, 0, 255)});
+					    (Vector2) { 105, 140 }, (Vector2) { 0, 0 }, 0, 20, 1, (Color) { 5, 0, 0, Clamp(255 + (220 - state->frame) * 5, 0, 255)});
 			}
 			// Лорена делгадо, Данйел Галвез, Павло Сантандер, Христофер Казерес
 			// Vigilancia tecnológica -> Adquisición de competencias -> Desafíos reales ->
@@ -232,13 +205,9 @@ void SetState(StateData *state, State newState) {
 			state->font = LoadFontEx("./res/fonts/UpheavalPro.ttf", FONT_QUALITY, codepoints, 210);
 			state->auxFont = LoadFontEx("./res/fonts/Pixel-UniCode.ttf", FONT_QUALITY, codepoints, 210);
 			for (i = 0; i < TEX_SIZE; i++) state->textures[i].init = false;
-			for (i = 0; i < SOUND_SIZE; i++) state->sounds[i].init = false;
-			for (i = 0; i < SFXALIAS_SIZE; i++) state->sfxAlias[i].init = false;
 
 			state->bgColor = (Color) { 255, 245, 245, 255 };
 
-			state->music = LoadMusicStream("./res/sfx/danseMacabre.mp3");
-			state->music.looping = true;
 			state->textures[0].tex = LoadTexture("./res/db1/RightS.png");
 			state->textures[0].init = true;
 			state->textures[1].tex = LoadTexture("./res/db1/LeftS.png");
